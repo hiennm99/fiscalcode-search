@@ -455,7 +455,7 @@ export const FiscalCodeSearch: React.FC = () => {
                                     value={fiscalCode}
                                     onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
                                     onKeyPress={handleKeyPress}
-                                    placeholder="Enter fiscal code (e.g., RSSMRA85H15F205X)"
+                                    placeholder="Enter fiscal code (e.g., PLZLRT55D29I612W, ZZLLBT72E50D548Z)"
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
                                     disabled={loading}
                                 />
