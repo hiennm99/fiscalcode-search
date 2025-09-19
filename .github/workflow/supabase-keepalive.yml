@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Keep Supabase Active (Simple HTTP Ping)
+      - name: Keep Supabase Active for FiscalCode Search
         env:
           SUPABASE_URL: https://hbsickdgdwshuvdcadgq.supabase.co
           SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhic2lja2RnZHdzaHV2ZGNhZGdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNzQzMzIsImV4cCI6MjA3Mzg1MDMzMn0.bwM6cB8GSSKGsx1lI-bxSj3ObNvRpIhxnWuQ8c8dyDI
