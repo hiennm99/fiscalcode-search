@@ -27,12 +27,12 @@ export const FiscalCodeSearch: React.FC = () => {
         }
     };
 
-    const debugSearch = async () => {
-        if (!fiscalCode.trim()) return;
-
-        console.log('=== DEBUG SEARCH ===');
-        console.log('Debug complete. Check console for details.');
-    };
+    // const debugSearch = async () => {
+    //     if (!fiscalCode.trim()) return;
+    //
+    //     console.log('=== DEBUG SEARCH ===');
+    //     console.log('Debug complete. Check console for details.');
+    // };
 
     const handleSearch = async () => {
         if (!fiscalCode.trim()) {
