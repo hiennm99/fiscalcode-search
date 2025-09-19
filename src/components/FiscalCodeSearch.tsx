@@ -479,14 +479,6 @@ export const FiscalCodeSearch: React.FC = () => {
                                 )}
                             </button>
 
-                            {/* Debug Button */}
-                            <button
-                                onClick={() => debugSearch()}
-                                disabled={loading || !fiscalCode.trim() || dbConnected === false}
-                                className="px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors"
-                            >
-                                Debug
-                            </button>
                         </div>
 
                         {/* Error Message */}
