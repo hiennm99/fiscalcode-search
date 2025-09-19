@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { FiscalCodeSearch } from "./components/FiscalCodeSearch.tsx";
 
 function App() {

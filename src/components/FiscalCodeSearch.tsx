@@ -1,131 +1,76 @@
-import React, { useState } from 'react';
-import { Search, User, Users, Briefcase, Link, Database, Loader2, AlertCircle } from 'lucide-react';
-
-// Types based on your SQL schema
-interface BaseEntity {
-    source_system: string;
-    collected_date: string;
-    created_date: string;
-    fiscal_code: string;
-    name: string;
-    is_company: boolean;
-    gender?: string;
-    date_of_birth?: string;
-    country_of_birth?: string;
-    region_of_birth?: string;
-    province_of_birth?: string;
-    city_of_birth?: string;
-    is_deceased?: boolean;
-    date_of_death?: string;
-    entity_notes?: string;
-    street?: string;
-    locality?: string;
-    city?: string;
-    province?: string;
-    region?: string;
-    postcode?: string;
-    country?: string;
-    bank_name?: string;
-    account_number?: string;
-}
-
-interface Entity extends BaseEntity {
-    loan_id?: number;
-}
-
-interface JobInfo {
-    source_system: string;
-    collected_date: string;
-    created_date: string;
-    fiscal_code: string;
-    job_position?: string;
-    job_employer_name?: string;
-    job_monthly_income?: number;
-    job_start_date?: string;
-    job_end_date?: string;
-    job_legal_city?: string;
-    job_legal_province?: string;
-    finance_position?: string;
-    finance_bank_account?: string;
-}
-
-interface SearchResults {
-    entities: Entity[];
-    guarantors: Entity[];
-    jobs: JobInfo[];
-    joints: Entity[];
-}
-
-// Mock data for demo purposes
-const generateMockData = (fiscalCode: string): SearchResults => {
-    const baseEntity: Entity = {
-        source_system: 'recovery_system',
-        collected_date: '2024-01-15',
-        created_date: '2024-01-10',
-        fiscal_code: fiscalCode,
-        name: 'Mario Rossi',
-        is_company: false,
-        gender: 'M',
-        date_of_birth: '1985-06-15',
-        country_of_birth: 'Italia',
-        region_of_birth: 'Lombardia',
-        province_of_birth: 'MI',
-        city_of_birth: 'Milano',
-        is_deceased: false,
-        street: 'Via Roma 123',
-        city: 'Milano',
-        province: 'MI',
-        region: 'Lombardia',
-        postcode: '20100',
-        country: 'Italia',
-        bank_name: 'Banca Intesa',
-        account_number: 'IT60 X054 2811 1010 0000 0123456',
-        loan_id: 12345
-    };
-
-    const jobInfo: JobInfo = {
-        source_system: 'portfolio_system',
-        collected_date: '2024-01-15',
-        created_date: '2024-01-10',
-        fiscal_code: fiscalCode,
-        job_position: 'Software Engineer',
-        job_employer_name: 'Tech Company SRL',
-        job_monthly_income: 3500,
-        job_start_date: '2020-01-15',
-        job_legal_city: 'Milano',
-        job_legal_province: 'MI',
-        finance_position: 'Active',
-        finance_bank_account: 'IT60 X054 2811 1010 0000 0123456'
-    };
-
-    return {
-        entities: [baseEntity],
-        guarantors: Math.random() > 0.5 ? [{ ...baseEntity, name: 'Giulia Verdi', loan_id: 12346 }] : [],
-        jobs: [jobInfo],
-        joints: Math.random() > 0.7 ? [{ ...baseEntity, name: 'Anna Bianchi', loan_id: 12347 }] : []
-    };
-};
+import React, { useState, useEffect } from 'react';
+import { Search, User, Users, Briefcase, Link, Database, Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import type{ Entity, JobInfo, SearchResults } from '../services/searchService';
+import {FiscalCodeSearchService} from "../services/searchService";
 
 export const FiscalCodeSearch: React.FC = () => {
     const [fiscalCode, setFiscalCode] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
     const [activeTab, setActiveTab] = useState<keyof SearchResults>('entities');
+    const [searchMode, setSearchMode] = useState<'exact' | 'partial'>('exact');
+    const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    // Kiểm tra kết nối database khi component mount
+    useEffect(() => {
+        checkDatabaseConnection();
+    }, []);
+
+    const checkDatabaseConnection = async () => {
+        try {
+            const connected = await FiscalCodeSearchService.testConnection();
+            setDbConnected(connected);
+        } catch (error) {
+            setDbConnected(false);
+        }
+    };
+
+    const debugSearch = async () => {
+        if (!fiscalCode.trim()) return;
+
+        console.log('=== DEBUG SEARCH ===');
+        const result = await FiscalCodeSearchService.debugSearch(fiscalCode.toUpperCase());
+        console.log('Debug complete. Check console for details.');
+    };
 
     const handleSearch = async () => {
         if (!fiscalCode.trim()) {
-            alert('Inserisci un codice fiscale');
+            setError('Inserisci un codice fiscale');
+            return;
+        }
+
+        if (dbConnected === false) {
+            setError('Connessione al database non disponibile');
             return;
         }
 
         setLoading(true);
+        setError(null);
 
-        // Simulate API call delay
-        setTimeout(() => {
-            const results = generateMockData(fiscalCode.toUpperCase());
+        try {
+            let results: SearchResults;
+
+            if (searchMode === 'exact') {
+                results = await FiscalCodeSearchService.searchExactFiscalCode(fiscalCode);
+            } else {
+                results = await FiscalCodeSearchService.searchByFiscalCode(fiscalCode);
+            }
+
             setSearchResults(results);
+
+            // Se non ci sono risultati, mostra messaggio
+            const totalResults = Object.values(results).reduce((total, arr) => total + arr.length, 0);
+            if (totalResults === 0) {
+                setError(`Nessun risultato trovato per il codice fiscale: ${fiscalCode.toUpperCase()}`);
+            }
+
+        } catch (err) {
+            console.error('Search error:', err);
+            setError(err instanceof Error ? err.message : 'Errore durante la ricerca');
+        } finally {
             setLoading(false);
-        }, 1500);
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -178,6 +123,7 @@ export const FiscalCodeSearch: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <h4 className="font-semibold text-gray-700 mb-2">Informazioni Lavorative</h4>
+                    <p><span className="font-medium">Codice Fiscale:</span> {job.fiscal_code}</p>
                     <p><span className="font-medium">Posizione:</span> {job.job_position || 'N/A'}</p>
                     <p><span className="font-medium">Datore Lavoro:</span> {job.job_employer_name || 'N/A'}</p>
                     <p><span className="font-medium">Reddito Mensile:</span> {job.job_monthly_income ? `€${job.job_monthly_income}` : 'N/A'}</p>
@@ -191,7 +137,9 @@ export const FiscalCodeSearch: React.FC = () => {
                 </div>
 
                 <div>
-                    <h4 className="font-semibold text-gray-700 mb-2">Informazioni Finanziarie</h4>
+                    <h4 className="font-semibold text-gray-700 mb-2">Dettagli Sistema</h4>
+                    <p><span className="font-medium">Sistema:</span> {job.source_system}</p>
+                    <p><span className="font-medium">Data Raccolta:</span> {job.collected_date}</p>
                     <p><span className="font-medium">Posizione Finanziaria:</span> {job.finance_position || 'N/A'}</p>
                     <p><span className="font-medium">Conto Bancario:</span> {job.finance_bank_account || 'N/A'}</p>
                 </div>
@@ -212,6 +160,21 @@ export const FiscalCodeSearch: React.FC = () => {
                     <div className="flex items-center justify-center mb-4">
                         <Database className="h-12 w-12 text-blue-600 mr-3" />
                         <h1 className="text-4xl font-bold text-gray-800">Fiscal Code Search</h1>
+                        {dbConnected !== null && (
+                            <div className="ml-4 flex items-center">
+                                {dbConnected ? (
+                                    <div className="flex items-center text-green-600">
+                                        <CheckCircle className="h-5 w-5 mr-1" />
+                                        <span className="text-sm">DB Connesso</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center text-red-600">
+                                        <XCircle className="h-5 w-5 mr-1" />
+                                        <span className="text-sm">DB Disconnesso</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <p className="text-gray-600 text-lg">Cerca informazioni per codice fiscale nei database</p>
                 </div>
@@ -219,6 +182,32 @@ export const FiscalCodeSearch: React.FC = () => {
                 {/* Search Section */}
                 <div className="max-w-2xl mx-auto mb-8">
                     <div className="bg-white rounded-lg shadow-lg p-6">
+                        {/* Search Mode Toggle */}
+                        <div className="flex justify-center mb-4">
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                <button
+                                    onClick={() => setSearchMode('exact')}
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                        searchMode === 'exact'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    Ricerca Esatta
+                                </button>
+                                <button
+                                    onClick={() => setSearchMode('partial')}
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                        searchMode === 'partial'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    Ricerca Parziale
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="flex gap-3">
                             <div className="flex-1 relative">
                                 <input
@@ -234,7 +223,7 @@ export const FiscalCodeSearch: React.FC = () => {
                             </div>
                             <button
                                 onClick={handleSearch}
-                                disabled={loading || !fiscalCode.trim()}
+                                disabled={loading || !fiscalCode.trim() || dbConnected === false}
                                 className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors flex items-center gap-2"
                             >
                                 {loading ? (
@@ -249,21 +238,38 @@ export const FiscalCodeSearch: React.FC = () => {
                                     </>
                                 )}
                             </button>
+
+                            {/* Debug Button */}
+                            <button
+                                onClick={() => debugSearch()}
+                                disabled={loading || !fiscalCode.trim() || dbConnected === false}
+                                className="px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors"
+                            >
+                                Debug
+                            </button>
                         </div>
+
+                        {/* Error Message */}
+                        {error && (
+                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-red-600" />
+                                <span className="text-red-700">{error}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Results Section */}
-                {searchResults && (
+                {searchResults && getResultCount() > 0 && (
                     <div className="max-w-7xl mx-auto">
                         {/* Results Summary */}
                         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <AlertCircle className="h-6 w-6 text-green-600" />
+                                    <CheckCircle className="h-6 w-6 text-green-600" />
                                     <span className="text-lg font-semibold text-gray-800">
-                    Risultati trovati: {getResultCount()} record per il codice fiscale: {fiscalCode}
-                  </span>
+                                        Risultati trovati: {getResultCount()} record per il codice fiscale: {fiscalCode}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -289,8 +295,8 @@ export const FiscalCodeSearch: React.FC = () => {
                                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                                             isActive ? 'bg-white text-blue-600' : `${color} text-white`
                                         }`}>
-                      {count}
-                    </span>
+                                            {count}
+                                        </span>
                                     </button>
                                 );
                             })}
@@ -316,12 +322,15 @@ export const FiscalCodeSearch: React.FC = () => {
                 )}
 
                 {/* Initial State */}
-                {!searchResults && !loading && (
+                {!searchResults && !loading && !error && (
                     <div className="max-w-2xl mx-auto text-center">
                         <div className="bg-white rounded-lg shadow-lg p-8">
                             <Database className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-xl font-semibold text-gray-700 mb-2">Inizia la tua ricerca</h3>
-                            <p className="text-gray-500">Inserisci un codice fiscale per cercare informazioni nei database delle entità, garanti, lavori e joint ventures.</p>
+                            <p className="text-gray-500">
+                                Inserisci un codice fiscale per cercare informazioni nei database delle entità, garanti, lavori e joint ventures.
+                                {searchMode === 'partial' && ' Usa la ricerca parziale per trovare codici simili.'}
+                            </p>
                         </div>
                     </div>
                 )}
