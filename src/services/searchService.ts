@@ -11,6 +11,7 @@ export interface BaseEntity {
     source_system: string;
     collected_date: string;
     created_date: string;
+    similar_score:string;
     fiscal_code: string;
     name: string;
     is_company: boolean;
@@ -23,6 +24,11 @@ export interface BaseEntity {
     is_deceased?: boolean;
     date_of_death?: string;
     entity_notes?: string;
+    origin_street?: string;
+    origin_city?: string;
+    origin_province?: string;
+    address_type?: string;
+    address_notes?: string;
     street?: string;
     locality?: string;
     city?: string;
@@ -31,7 +37,11 @@ export interface BaseEntity {
     postcode?: string;
     country?: string;
     bank_name?: string;
+    bank_cab?: string;
+    bank_abi?: string;
     account_number?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface Entity extends BaseEntity {
@@ -47,12 +57,44 @@ export interface JobInfo {
     job_position?: string;
     job_employer_name?: string;
     job_monthly_income?: number;
+    job_income_range?:string;
+    job_pension_category?:string;
+    job_reference?:string;
     job_start_date?: string;
     job_end_date?: string;
+    job_employer_phone?:string;
+    job_employer_fax?:string;
+    job_employer_tax_code?:string;
+    job_employer_vat_number?: string;
+
+    job_work_activity_notes?: string;
+    job_legal_street_type?: string;
+    job_legal_street?: string;
+    job_legal_street_number?: string;
+    job_legal_address?: string;
     job_legal_city?: string;
     job_legal_province?: string;
+    job_legal_postcode?: string;
+
+    job_operation_street_type?: string;
+    job_operation_street?: string;
+    job_operation_street_number?: string;
+    job_operation_address?: string;
+    job_operation_city?: string;
+    job_operation_province?: string;
+    job_operation_postcode?: string;
+
     finance_position?: string;
+    finance_supplier_evaluation?: string;
+    finance_ongoing_transfers?: string;
+    finance_ongoing_garnishments?: string;
+    finance_transfer_amount?: string;
+    finance_transfer_expiry?: string;
     finance_bank_account?: string;
+    finance_garnishment_amount?: string;
+    finance_garnishment_expiry?: string;
+    finance_garnishment_notes?: string;
+    finance_transfer_notes?: string;
 }
 
 export interface SearchResults {
@@ -103,6 +145,7 @@ export class FiscalCodeSearchService {
 
             if (loanIds.length > 0) {
                 console.log('🔗 Searching guarantors and joints by loan_id...');
+                // @ts-ignore
                 [guarantorsResult, jointsResult] = await Promise.all([
                     supabase.from('guarantors').select('*').in('loan_id', loanIds),
                     supabase.from('joints').select('*').in('loan_id', loanIds)
@@ -136,6 +179,7 @@ export class FiscalCodeSearchService {
 
         } catch (error) {
             console.error('💥 Search service error:', error);
+            // @ts-ignore
             throw new Error(`Lỗi tìm kiếm: ${error.message}`);
         }
     }
@@ -171,6 +215,7 @@ export class FiscalCodeSearchService {
 
             if (loanIds.length > 0) {
                 console.log('🔗 Searching guarantors and joints by loan_id...');
+                // @ts-ignore
                 [guarantorsResult, jointsResult] = await Promise.all([
                     supabase.from('guarantors').select('*').in('loan_id', loanIds),
                     supabase.from('joints').select('*').in('loan_id', loanIds)
@@ -197,6 +242,7 @@ export class FiscalCodeSearchService {
 
         } catch (error) {
             console.error('💥 Exact search error:', error);
+            // @ts-ignore
             throw new Error(`Lỗi tìm kiếm chính xác: ${error.message}`);
         }
     }
@@ -359,6 +405,7 @@ export class FiscalCodeSearchService {
 
         } catch (error) {
             console.error('💥 Debug session error:', error);
+            // @ts-ignore
             return { error: error.message };
         }
     }
@@ -392,6 +439,7 @@ export class FiscalCodeSearchService {
             tableTests.forEach(test => {
                 console.log(`  ${test.table}: ${test.success ? '✅' : '❌'}`);
                 if (!test.success && test.error) {
+                    // @ts-ignore
                     console.log(`    Error: ${test.error.message}`);
                 }
             });
@@ -418,6 +466,7 @@ export class FiscalCodeSearchService {
                     .from(table)
                     .select('*', { count: 'exact', head: true });
 
+                // @ts-ignore
                 stats[table] = {
                     count: result.count || 0,
                     error: result.error?.message
@@ -429,6 +478,7 @@ export class FiscalCodeSearchService {
 
         } catch (error) {
             console.error('📈 Stats error:', error);
+            // @ts-ignore
             return { error: error.message };
         }
     }

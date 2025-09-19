@@ -31,7 +31,6 @@ export const FiscalCodeSearch: React.FC = () => {
         if (!fiscalCode.trim()) return;
 
         console.log('=== DEBUG SEARCH ===');
-        const result = await FiscalCodeSearchService.debugSearch(fiscalCode.toUpperCase());
         console.log('Debug complete. Check console for details.');
     };
 
@@ -353,8 +352,6 @@ export const FiscalCodeSearch: React.FC = () => {
                                 {renderDetailRow('Source System', job.source_system, true)}
                                 {renderDetailRow('Collected Date', job.collected_date, true)}
                                 {renderDetailRow('Created Date', job.created_date, isExpanded)}
-                                {renderDetailRow('Created At', job.created_at, isExpanded)}
-                                {renderDetailRow('Updated At', job.updated_at, isExpanded)}
                             </div>
                         </div>
 
