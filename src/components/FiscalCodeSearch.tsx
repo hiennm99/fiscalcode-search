@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Users, Briefcase, Link, Database, Loader2, AlertCircle, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
-import type { Entity, JobInfo, SearchResults } from '../services/searchService';
+import { Search, User, Users, Briefcase, MapPin, CreditCard, Phone, Database, Loader2, AlertCircle, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import type { Entity, SearchResults, DetailedResults, Contact, Address, Bank, Guarantor, JobInfo } from '../services/searchService';
 import { FiscalCodeSearchService } from "../services/searchService";
 
 export const FiscalCodeSearch: React.FC = () => {
     const [fiscalCode, setFiscalCode] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
-    const [activeTab, setActiveTab] = useState<keyof SearchResults>('entities');
+    const [detailedResults, setDetailedResults] = useState<DetailedResults>({});
+    const [activeTab, setActiveTab] = useState<string>('entities');
     const [searchMode, setSearchMode] = useState<'exact' | 'partial'>('exact');
     const [dbConnected, setDbConnected] = useState<boolean | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [expandedCards, setExpandedCards] = useState<{[key: string]: boolean}>({});
+    const [loadingTab, setLoadingTab] = useState<string | null>(null);
 
     // Check database connection when component mounts
     useEffect(() => {
@@ -27,13 +29,6 @@ export const FiscalCodeSearch: React.FC = () => {
         }
     };
 
-    // const debugSearch = async () => {
-    //     if (!fiscalCode.trim()) return;
-    //
-    //     console.log('=== DEBUG SEARCH ===');
-    //     console.log('Debug complete. Check console for details.');
-    // };
-
     const handleSearch = async () => {
         if (!fiscalCode.trim()) {
             setError('Please enter a fiscal code');
@@ -47,21 +42,15 @@ export const FiscalCodeSearch: React.FC = () => {
 
         setLoading(true);
         setError(null);
+        setSearchResults(null);
+        setDetailedResults({});
+        setActiveTab('entities');
 
         try {
-            let results: SearchResults;
-
-            if (searchMode === 'exact') {
-                results = await FiscalCodeSearchService.searchExactFiscalCode(fiscalCode);
-            } else {
-                results = await FiscalCodeSearchService.searchByFiscalCode(fiscalCode);
-            }
-
+            const results = await FiscalCodeSearchService.searchByFiscalCode(fiscalCode, searchMode);
             setSearchResults(results);
 
-            // If no results, show message
-            const totalResults = Object.values(results).reduce((total, arr) => total + arr.length, 0);
-            if (totalResults === 0) {
+            if (results.entities.length === 0) {
                 setError(`No results found for fiscal code: ${fiscalCode.toUpperCase()}`);
             }
 
@@ -70,6 +59,59 @@ export const FiscalCodeSearch: React.FC = () => {
             setError(err instanceof Error ? err.message : 'Error during search');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleTabClick = async (tabKey: string) => {
+        if (!searchResults || tabKey === 'entities') {
+            setActiveTab(tabKey);
+            return;
+        }
+
+        // If we already have data for this tab, just switch to it
+        if (detailedResults[tabKey as keyof DetailedResults]) {
+            setActiveTab(tabKey);
+            return;
+        }
+
+        // Load detailed data for this tab
+        setLoadingTab(tabKey);
+        try {
+            const recordIds = searchResults.entities.map(entity => entity.record_id).filter(id => id);
+
+            let results: DetailedResults = {};
+
+            switch (tabKey) {
+                case 'guarantors':
+                    const guarantors = await FiscalCodeSearchService.getGuarantors(recordIds);
+                    results = { guarantors };
+                    break;
+                case 'contacts':
+                    const contacts = await FiscalCodeSearchService.getContacts(recordIds);
+                    results = { contacts };
+                    break;
+                case 'addresses':
+                    const addresses = await FiscalCodeSearchService.getAddresses(recordIds);
+                    results = { addresses };
+                    break;
+                case 'banks':
+                    const banks = await FiscalCodeSearchService.getBanks(recordIds);
+                    results = { banks };
+                    break;
+                case 'jobs':
+                    const jobs = await FiscalCodeSearchService.getJobs(recordIds);
+                    results = { jobs };
+                    break;
+            }
+
+            setDetailedResults(prev => ({ ...prev, ...results }));
+            setActiveTab(tabKey);
+
+        } catch (err) {
+            console.error('Error loading tab data:', err);
+            setError(err instanceof Error ? err.message : 'Error loading data');
+        } finally {
+            setLoadingTab(null);
         }
     };
 
@@ -87,10 +129,12 @@ export const FiscalCodeSearch: React.FC = () => {
     };
 
     const tabs = [
-        { key: 'entities' as const, label: 'Entities', icon: User, color: 'bg-blue-500' },
-        { key: 'guarantors' as const, label: 'Guarantors', icon: Users, color: 'bg-green-500' },
-        { key: 'jobs' as const, label: 'Jobs', icon: Briefcase, color: 'bg-orange-500' },
-        { key: 'joints' as const, label: 'Joints', icon: Link, color: 'bg-purple-500' }
+        { key: 'entities', label: 'Entities', icon: User, color: 'bg-blue-500', count: searchResults?.entities.length || 0 },
+        { key: 'guarantors', label: 'Guarantors', icon: Users, color: 'bg-green-500', count: searchResults?.metadata.guarantors_count || 0 },
+        { key: 'contacts', label: 'Contacts', icon: Phone, color: 'bg-purple-500', count: searchResults?.metadata.contacts_count || 0 },
+        { key: 'addresses', label: 'Addresses', icon: MapPin, color: 'bg-orange-500', count: searchResults?.metadata.addresses_count || 0 },
+        { key: 'banks', label: 'Banks', icon: CreditCard, color: 'bg-red-500', count: searchResults?.metadata.banks_count || 0 },
+        { key: 'jobs', label: 'Jobs', icon: Briefcase, color: 'bg-indigo-500', count: searchResults?.metadata.jobs_count || 0 }
     ];
 
     const renderDetailRow = (label: string, value: any, isExpanded: boolean) => {
@@ -110,8 +154,8 @@ export const FiscalCodeSearch: React.FC = () => {
         );
     };
 
-    const renderEntityCard = (entity: Entity, index: number, type: string) => {
-        const cardId = `${type}-${index}`;
+    const renderEntityCard = (entity: Entity, index: number) => {
+        const cardId = `entity-${index}`;
         const isExpanded = expandedCards[cardId] || false;
 
         return (
@@ -121,6 +165,7 @@ export const FiscalCodeSearch: React.FC = () => {
                     <div>
                         <h4 className="font-bold text-lg text-gray-800">{entity.name}</h4>
                         <p className="text-sm text-gray-600">Fiscal Code: {entity.fiscal_code}</p>
+                        <p className="text-xs text-gray-500">Record ID: {entity.record_id}</p>
                     </div>
                     <button
                         onClick={() => toggleCardExpansion(cardId)}
@@ -138,15 +183,13 @@ export const FiscalCodeSearch: React.FC = () => {
                         <div>
                             <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Basic Information</h5>
                             <div className="space-y-1">
-                                {renderDetailRow('ID', entity.id, isExpanded)}
                                 {renderDetailRow('Name', entity.name, true)}
                                 {renderDetailRow('Fiscal Code', entity.fiscal_code, true)}
-                                {renderDetailRow('Is Company', entity.is_company, isExpanded)}
+                                {renderDetailRow('Is Company', entity.is_company, true)}
                                 {renderDetailRow('Gender', entity.gender, isExpanded)}
                                 {renderDetailRow('Date of Birth', entity.date_of_birth, isExpanded)}
                                 {renderDetailRow('Is Deceased', entity.is_deceased, isExpanded)}
                                 {renderDetailRow('Date of Death', entity.date_of_death, isExpanded)}
-                                {renderDetailRow('Loan ID', entity.loan_id, isExpanded)}
                             </div>
                         </div>
 
@@ -155,87 +198,180 @@ export const FiscalCodeSearch: React.FC = () => {
                             <div>
                                 <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Birth Information</h5>
                                 <div className="space-y-1">
-                                    {renderDetailRow('Country of Birth', entity.country_of_birth, isExpanded)}
-                                    {renderDetailRow('Region of Birth', entity.region_of_birth, isExpanded)}
-                                    {renderDetailRow('Province of Birth', entity.province_of_birth, isExpanded)}
-                                    {renderDetailRow('City of Birth', entity.city_of_birth, isExpanded)}
+                                    {renderDetailRow('Country of Birth', guarantor.country_of_birth, isExpanded)}
+                                    {renderDetailRow('Region of Birth', guarantor.region_of_birth, isExpanded)}
+                                    {renderDetailRow('Province of Birth', guarantor.province_of_birth, isExpanded)}
+                                    {renderDetailRow('City of Birth', guarantor.city_of_birth, isExpanded)}
                                 </div>
                             </div>
                         )}
-
-                        {/* Address Information */}
                         <div>
-                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Address</h5>
+                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">System Data</h5>
                             <div className="space-y-1">
-                                {renderDetailRow('Street', entity.street, true)}
-                                {renderDetailRow('Locality', entity.locality, isExpanded)}
-                                {renderDetailRow('City', entity.city, true)}
-                                {renderDetailRow('Province', entity.province, true)}
-                                {renderDetailRow('Region', entity.region, isExpanded)}
-                                {renderDetailRow('Postcode', entity.postcode, true)}
-                                {renderDetailRow('Country', entity.country, isExpanded)}
-                                {renderDetailRow('Address Type', entity.address_type, isExpanded)}
+                                {renderDetailRow('Source System', guarantor.source_system, true)}
+                                {renderDetailRow('Loan ID', guarantor.loan_id, true)}
+                                {renderDetailRow('Collected Date', guarantor.collected_date, true)}
+                                {renderDetailRow('Created Date', guarantor.created_date, isExpanded)}
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
-                        {/* Origin Address */}
+    const renderContactCard = (contact: Contact, index: number) => {
+        const cardId = `contact-${index}`;
+        const isExpanded = expandedCards[cardId] || false;
+
+        return (
+            <div key={cardId} className="bg-white rounded-lg shadow-md mb-4 border-l-4 border-purple-500">
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <div>
+                        <h4 className="font-bold text-lg text-gray-800">{contact.email || contact.phone_number || 'Contact Info'}</h4>
+                        <p className="text-sm text-gray-600">Fiscal Code: {contact.fiscal_code}</p>
+                        <p className="text-xs text-gray-500">Record ID: {contact.record_id}</p>
+                    </div>
+                    <button
+                        onClick={() => toggleCardExpansion(cardId)}
+                        className="flex items-center gap-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {isExpanded ? 'Show Less' : 'Show All'}
+                    </button>
+                </div>
+                <div className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Contact Details</h5>
+                            <div className="space-y-1">
+                                {renderDetailRow('Email', contact.email, true)}
+                                {renderDetailRow('Is PEC', contact.is_pec, true)}
+                                {renderDetailRow('Is Verified', contact.is_verified, true)}
+                                {renderDetailRow('Phone Number', contact.phone_number, true)}
+                            </div>
+                        </div>
+                        <div>
+                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">System Data</h5>
+                            <div className="space-y-1">
+                                {renderDetailRow('Source System', contact.source_system, true)}
+                                {renderDetailRow('Collected Date', contact.collected_date, true)}
+                                {renderDetailRow('Created Date', contact.created_date, isExpanded)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderAddressCard = (address: Address, index: number) => {
+        const cardId = `address-${index}`;
+        const isExpanded = expandedCards[cardId] || false;
+
+        return (
+            <div key={cardId} className="bg-white rounded-lg shadow-md mb-4 border-l-4 border-orange-500">
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <div>
+                        <h4 className="font-bold text-lg text-gray-800">
+                            {address.street || 'Address'} - {address.city || 'Unknown City'}
+                        </h4>
+                        <p className="text-sm text-gray-600">Fiscal Code: {address.fiscal_code}</p>
+                        <p className="text-xs text-gray-500">Record ID: {address.record_id}</p>
+                    </div>
+                    <button
+                        onClick={() => toggleCardExpansion(cardId)}
+                        className="flex items-center gap-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {isExpanded ? 'Show Less' : 'Show All'}
+                    </button>
+                </div>
+                <div className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div>
+                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Current Address</h5>
+                            <div className="space-y-1">
+                                {renderDetailRow('Street', address.street, true)}
+                                {renderDetailRow('Locality', address.locality, isExpanded)}
+                                {renderDetailRow('City', address.city, true)}
+                                {renderDetailRow('Province', address.province, true)}
+                                {renderDetailRow('Region', address.region, isExpanded)}
+                                {renderDetailRow('Postcode', address.postcode, true)}
+                                {renderDetailRow('Country', address.country, isExpanded)}
+                                {renderDetailRow('Address Type', address.address_type, isExpanded)}
+                            </div>
+                        </div>
                         {isExpanded && (
                             <div>
                                 <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Origin Address</h5>
                                 <div className="space-y-1">
-                                    {renderDetailRow('Origin Province', entity.origin_province, isExpanded)}
-                                    {renderDetailRow('Origin City', entity.origin_city, isExpanded)}
-                                    {renderDetailRow('Origin Street', entity.origin_street, isExpanded)}
+                                    {renderDetailRow('Origin Province', address.origin_province, isExpanded)}
+                                    {renderDetailRow('Origin City', address.origin_city, isExpanded)}
+                                    {renderDetailRow('Origin Street', address.origin_street, isExpanded)}
                                 </div>
                             </div>
                         )}
-
-                        {/* Banking Information */}
-                        {isExpanded && (
-                            <div>
-                                <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Banking</h5>
-                                <div className="space-y-1">
-                                    {renderDetailRow('Bank Name', entity.bank_name, isExpanded)}
-                                    {renderDetailRow('Bank ABI', entity.bank_abi, isExpanded)}
-                                    {renderDetailRow('Bank CAB', entity.bank_cab, isExpanded)}
-                                    {renderDetailRow('Account Number', entity.account_number, isExpanded)}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* System Information */}
                         <div>
                             <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">System Data</h5>
                             <div className="space-y-1">
-                                {renderDetailRow('Source System', entity.source_system, true)}
-                                {renderDetailRow('Collected Date', entity.collected_date, true)}
-                                {renderDetailRow('Created Date', entity.created_date, isExpanded)}
-                                {renderDetailRow('Similar Score', entity.similar_score, isExpanded)}
-                                {renderDetailRow('Created At', entity.created_at, isExpanded)}
-                                {renderDetailRow('Updated At', entity.updated_at, isExpanded)}
+                                {renderDetailRow('Source System', address.source_system, true)}
+                                {renderDetailRow('Similar Score', address.similar_score, isExpanded)}
+                                {renderDetailRow('Row Number', address.rn, isExpanded)}
+                                {renderDetailRow('Collected Date', address.collected_date, true)}
                             </div>
                         </div>
-
-                        {/* Notes */}
-                        {isExpanded && (entity.entity_notes || entity.address_notes) && (
+                        {isExpanded && address.address_notes && (
                             <div className="md:col-span-2 lg:col-span-3">
                                 <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Notes</h5>
-                                <div className="space-y-2">
-                                    {entity.entity_notes && (
-                                        <div>
-                                            <span className="font-medium text-gray-600 text-sm">Entity Notes:</span>
-                                            <p className="text-gray-800 text-sm mt-1 bg-gray-50 p-2 rounded">{entity.entity_notes}</p>
-                                        </div>
-                                    )}
-                                    {entity.address_notes && (
-                                        <div>
-                                            <span className="font-medium text-gray-600 text-sm">Address Notes:</span>
-                                            <p className="text-gray-800 text-sm mt-1 bg-gray-50 p-2 rounded">{entity.address_notes}</p>
-                                        </div>
-                                    )}
-                                </div>
+                                <p className="text-gray-800 text-sm bg-gray-50 p-3 rounded">{address.address_notes}</p>
                             </div>
                         )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderBankCard = (bank: Bank, index: number) => {
+        const cardId = `bank-${index}`;
+        const isExpanded = expandedCards[cardId] || false;
+
+        return (
+            <div key={cardId} className="bg-white rounded-lg shadow-md mb-4 border-l-4 border-red-500">
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <div>
+                        <h4 className="font-bold text-lg text-gray-800">{bank.bank_name || 'Bank Account'}</h4>
+                        <p className="text-sm text-gray-600">Fiscal Code: {bank.fiscal_code}</p>
+                        <p className="text-xs text-gray-500">Record ID: {bank.record_id}</p>
+                    </div>
+                    <button
+                        onClick={() => toggleCardExpansion(cardId)}
+                        className="flex items-center gap-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {isExpanded ? 'Show Less' : 'Show All'}
+                    </button>
+                </div>
+                <div className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Bank Details</h5>
+                            <div className="space-y-1">
+                                {renderDetailRow('Bank Name', bank.bank_name, true)}
+                                {renderDetailRow('Bank ABI', bank.bank_abi, true)}
+                                {renderDetailRow('Bank CAB', bank.bank_cab, true)}
+                                {renderDetailRow('Account Number', bank.account_number, true)}
+                            </div>
+                        </div>
+                        <div>
+                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">System Data</h5>
+                            <div className="space-y-1">
+                                {renderDetailRow('Source System', bank.source_system, true)}
+                                {renderDetailRow('Collected Date', bank.collected_date, true)}
+                                {renderDetailRow('Created Date', bank.created_date, isExpanded)}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -247,13 +383,13 @@ export const FiscalCodeSearch: React.FC = () => {
         const isExpanded = expandedCards[cardId] || false;
 
         return (
-            <div key={cardId} className="bg-white rounded-lg shadow-md mb-4 border-l-4 border-orange-500">
-                {/* Card Header */}
+            <div key={cardId} className="bg-white rounded-lg shadow-md mb-4 border-l-4 border-indigo-500">
                 <div className="p-4 border-b border-gray-200 flex justify-between items-center">
                     <div>
                         <h4 className="font-bold text-lg text-gray-800">{job.job_employer_name || 'Unknown Employer'}</h4>
                         <p className="text-sm text-gray-600">Position: {job.job_position || 'N/A'}</p>
                         <p className="text-sm text-gray-600">Fiscal Code: {job.fiscal_code}</p>
+                        {job.record_id && <p className="text-xs text-gray-500">Record ID: {job.record_id}</p>}
                     </div>
                     <button
                         onClick={() => toggleCardExpansion(cardId)}
@@ -263,28 +399,19 @@ export const FiscalCodeSearch: React.FC = () => {
                         {isExpanded ? 'Show Less' : 'Show All'}
                     </button>
                 </div>
-
-                {/* Card Content */}
                 <div className="p-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Basic Job Information */}
                         <div>
                             <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Job Details</h5>
                             <div className="space-y-1">
-                                {renderDetailRow('ID', job.id, isExpanded)}
-                                {renderDetailRow('Fiscal Code', job.fiscal_code, true)}
                                 {renderDetailRow('Position', job.job_position, true)}
                                 {renderDetailRow('Employer Name', job.job_employer_name, true)}
                                 {renderDetailRow('Monthly Income', job.job_monthly_income ? `€${job.job_monthly_income}` : null, true)}
                                 {renderDetailRow('Income Range', job.job_income_range, isExpanded)}
                                 {renderDetailRow('Start Date', job.job_start_date, isExpanded)}
                                 {renderDetailRow('End Date', job.job_end_date, isExpanded)}
-                                {renderDetailRow('Pension Category', job.job_pension_category, isExpanded)}
-                                {renderDetailRow('Reference', job.job_reference, isExpanded)}
                             </div>
                         </div>
-
-                        {/* Employer Information */}
                         {isExpanded && (
                             <div>
                                 <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Employer Info</h5>
@@ -296,56 +423,6 @@ export const FiscalCodeSearch: React.FC = () => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Legal Address */}
-                        <div>
-                            <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Legal Address</h5>
-                            <div className="space-y-1">
-                                {renderDetailRow('Street Type', job.job_legal_street_type, isExpanded)}
-                                {renderDetailRow('Street', job.job_legal_street, isExpanded)}
-                                {renderDetailRow('Number', job.job_legal_street_number, isExpanded)}
-                                {renderDetailRow('Full Address', job.job_legal_address, true)}
-                                {renderDetailRow('City', job.job_legal_city, true)}
-                                {renderDetailRow('Province', job.job_legal_province, true)}
-                                {renderDetailRow('Postcode', job.job_legal_postcode, isExpanded)}
-                            </div>
-                        </div>
-
-                        {/* Operation Address */}
-                        {isExpanded && (
-                            <div>
-                                <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Operation Address</h5>
-                                <div className="space-y-1">
-                                    {renderDetailRow('Street Type', job.job_operation_street_type, isExpanded)}
-                                    {renderDetailRow('Street', job.job_operation_street, isExpanded)}
-                                    {renderDetailRow('Number', job.job_operation_street_number, isExpanded)}
-                                    {renderDetailRow('Full Address', job.job_operation_address, isExpanded)}
-                                    {renderDetailRow('City', job.job_operation_city, isExpanded)}
-                                    {renderDetailRow('Province', job.job_operation_province, isExpanded)}
-                                    {renderDetailRow('Postcode', job.job_operation_postcode, isExpanded)}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Financial Information */}
-                        {isExpanded && (
-                            <div>
-                                <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Financial Info</h5>
-                                <div className="space-y-1">
-                                    {renderDetailRow('Position', job.finance_position, isExpanded)}
-                                    {renderDetailRow('Supplier Evaluation', job.finance_supplier_evaluation, isExpanded)}
-                                    {renderDetailRow('Ongoing Transfers', job.finance_ongoing_transfers, isExpanded)}
-                                    {renderDetailRow('Ongoing Garnishments', job.finance_ongoing_garnishments, isExpanded)}
-                                    {renderDetailRow('Bank Account', job.finance_bank_account, isExpanded)}
-                                    {renderDetailRow('Transfer Amount', job.finance_transfer_amount ? `€${job.finance_transfer_amount}` : null, isExpanded)}
-                                    {renderDetailRow('Transfer Expiry', job.finance_transfer_expiry, isExpanded)}
-                                    {renderDetailRow('Garnishment Amount', job.finance_garnishment_amount ? `€${job.finance_garnishment_amount}` : null, isExpanded)}
-                                    {renderDetailRow('Garnishment Expiry', job.finance_garnishment_expiry, isExpanded)}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* System Information */}
                         <div>
                             <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">System Data</h5>
                             <div className="space-y-1">
@@ -354,42 +431,103 @@ export const FiscalCodeSearch: React.FC = () => {
                                 {renderDetailRow('Created Date', job.created_date, isExpanded)}
                             </div>
                         </div>
-
-                        {/* Notes */}
-                        {isExpanded && (job.job_work_activity_notes || job.finance_garnishment_notes || job.finance_transfer_notes) && (
-                            <div className="md:col-span-2 lg:col-span-3">
-                                <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Notes</h5>
-                                <div className="space-y-2">
-                                    {job.job_work_activity_notes && (
-                                        <div>
-                                            <span className="font-medium text-gray-600 text-sm">Work Activity Notes:</span>
-                                            <p className="text-gray-800 text-sm mt-1 bg-gray-50 p-2 rounded">{job.job_work_activity_notes}</p>
-                                        </div>
-                                    )}
-                                    {job.finance_garnishment_notes && (
-                                        <div>
-                                            <span className="font-medium text-gray-600 text-sm">Garnishment Notes:</span>
-                                            <p className="text-gray-800 text-sm mt-1 bg-gray-50 p-2 rounded">{job.finance_garnishment_notes}</p>
-                                        </div>
-                                    )}
-                                    {job.finance_transfer_notes && (
-                                        <div>
-                                            <span className="font-medium text-gray-600 text-sm">Transfer Notes:</span>
-                                            <p className="text-gray-800 text-sm mt-1 bg-gray-50 p-2 rounded">{job.finance_transfer_notes}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
         );
     };
 
-    const getResultCount = () => {
-        if (!searchResults) return 0;
-        return Object.values(searchResults).reduce((total, results) => total + results.length, 0);
+    const renderTabContent = () => {
+        if (loadingTab === activeTab) {
+            return (
+                <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                    <Loader2 className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-spin" />
+                    <p className="text-gray-500 text-lg">Loading {activeTab}...</p>
+                </div>
+            );
+        }
+
+        switch (activeTab) {
+            case 'entities':
+                return searchResults?.entities.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No entities found</p>
+                    </div>
+                ) : (
+                    <div>
+                        {searchResults?.entities.map(renderEntityCard)}
+                    </div>
+                );
+
+            case 'guarantors':
+                const guarantors = detailedResults.guarantors || [];
+                return guarantors.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No guarantors found</p>
+                    </div>
+                ) : (
+                    <div>
+                        {guarantors.map(renderGuarantorCard)}
+                    </div>
+                );
+
+            case 'contacts':
+                const contacts = detailedResults.contacts || [];
+                return contacts.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No contacts found</p>
+                    </div>
+                ) : (
+                    <div>
+                        {contacts.map(renderContactCard)}
+                    </div>
+                );
+
+            case 'addresses':
+                const addresses = detailedResults.addresses || [];
+                return addresses.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No addresses found</p>
+                    </div>
+                ) : (
+                    <div>
+                        {addresses.map(renderAddressCard)}
+                    </div>
+                );
+
+            case 'banks':
+                const banks = detailedResults.banks || [];
+                return banks.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No banks found</p>
+                    </div>
+                ) : (
+                    <div>
+                        {banks.map(renderBankCard)}
+                    </div>
+                );
+
+            case 'jobs':
+                const jobs = detailedResults.jobs || [];
+                return jobs.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 text-lg">No jobs found</p>
+                    </div>
+                ) : (
+                    <div>
+                        {jobs.map(renderJobCard)}
+                    </div>
+                );
+
+            default:
+                return null;
+        }
     };
 
     return (
@@ -416,7 +554,7 @@ export const FiscalCodeSearch: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <p className="text-gray-600 text-lg">Search for information by fiscal code across multiple databases</p>
+                    <p className="text-gray-600 text-lg">Search for information by fiscal code with record_id relationships</p>
                 </div>
 
                 {/* Search Section */}
@@ -455,7 +593,7 @@ export const FiscalCodeSearch: React.FC = () => {
                                     value={fiscalCode}
                                     onChange={(e) => setFiscalCode(e.target.value.toUpperCase())}
                                     onKeyPress={handleKeyPress}
-                                    placeholder="Enter fiscal code (e.g., PLZLRT55D29I612W, ZZLLBT72E50D548Z)"
+                                    placeholder="Enter fiscal code (e.g., PLZLRT55D29I612W)"
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
                                     disabled={loading}
                                 />
@@ -478,7 +616,6 @@ export const FiscalCodeSearch: React.FC = () => {
                                     </>
                                 )}
                             </button>
-
                         </div>
 
                         {/* Error Message */}
@@ -492,7 +629,7 @@ export const FiscalCodeSearch: React.FC = () => {
                 </div>
 
                 {/* Results Section */}
-                {searchResults && getResultCount() > 0 && (
+                {searchResults && searchResults.entities.length > 0 && (
                     <div className="max-w-7xl mx-auto">
                         {/* Results Summary */}
                         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -500,7 +637,7 @@ export const FiscalCodeSearch: React.FC = () => {
                                 <div className="flex items-center gap-3">
                                     <CheckCircle className="h-6 w-6 text-green-600" />
                                     <span className="text-lg font-semibold text-gray-800">
-                                        Results found: {getResultCount()} records for fiscal code: {fiscalCode}
+                                        Found {searchResults.entities.length} entities for fiscal code: {fiscalCode}
                                     </span>
                                 </div>
                             </div>
@@ -508,21 +645,26 @@ export const FiscalCodeSearch: React.FC = () => {
 
                         {/* Tabs */}
                         <div className="flex flex-wrap gap-2 mb-6">
-                            {tabs.map(({ key, label, icon: Icon, color }) => {
-                                const count = searchResults[key].length;
+                            {tabs.map(({ key, label, icon: Icon, color, count }) => {
                                 const isActive = activeTab === key;
+                                const isLoading = loadingTab === key;
 
                                 return (
                                     <button
                                         key={key}
-                                        onClick={() => setActiveTab(key)}
+                                        onClick={() => handleTabClick(key)}
+                                        disabled={isLoading}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                                             isActive
                                                 ? 'bg-blue-600 text-white shadow-lg'
                                                 : 'bg-white text-gray-700 hover:bg-gray-50 shadow-md'
-                                        }`}
+                                        } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
-                                        <Icon className="h-5 w-5" />
+                                        {isLoading ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Icon className="h-5 w-5" />
+                                        )}
                                         {label}
                                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                                             isActive ? 'bg-white text-blue-600' : `${color} text-white`
@@ -536,21 +678,7 @@ export const FiscalCodeSearch: React.FC = () => {
 
                         {/* Tab Content */}
                         <div className="min-h-64">
-                            {searchResults[activeTab].length === 0 ? (
-                                <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                                    <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                    <p className="text-gray-500 text-lg">No data found in {tabs.find(t => t.key === activeTab)?.label} category</p>
-                                </div>
-                            ) : (
-                                <div>
-                                    {activeTab === 'jobs'
-                                        ? searchResults.jobs.map(renderJobCard)
-                                        : (searchResults[activeTab] as Entity[]).map((entity, index) =>
-                                            renderEntityCard(entity, index, activeTab)
-                                        )
-                                    }
-                                </div>
-                            )}
+                            {renderTabContent()}
                         </div>
                     </div>
                 )}
@@ -562,8 +690,8 @@ export const FiscalCodeSearch: React.FC = () => {
                             <Database className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                             <h3 className="text-xl font-semibold text-gray-700 mb-2">Start Your Search</h3>
                             <p className="text-gray-500">
-                                Enter a fiscal code to search for information across entities, guarantors, jobs, and joint ventures databases.
-                                {searchMode === 'partial' && ' Use partial search to find similar codes.'}
+                                Enter a fiscal code to search across all related tables using record_id relationships.
+                                The system will show entities first, then load detailed information on demand.
                             </p>
                         </div>
                     </div>
@@ -571,4 +699,72 @@ export const FiscalCodeSearch: React.FC = () => {
             </div>
         </div>
     );
+};mb-3 text-sm uppercase tracking-wide">Birth Information</h5>
+<div className="space-y-1">
+    {renderDetailRow('Country of Birth', entity.country_of_birth, isExpanded)}
+{renderDetailRow('Region of Birth', entity.region_of_birth, isExpanded)}
+{renderDetailRow('Province of Birth', entity.province_of_birth, isExpanded)}
+{renderDetailRow('City of Birth', entity.city_of_birth, isExpanded)}
+</div>
+</div>
+)}
+
+{/* System Information */}
+<div>
+    <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">System Data</h5>
+    <div className="space-y-1">
+        {renderDetailRow('Source System', entity.source_system, true)}
+        {renderDetailRow('Loan ID', entity.loan_id, true)}
+        {renderDetailRow('Collected Date', entity.collected_date, true)}
+        {renderDetailRow('Created Date', entity.created_date, isExpanded)}
+    </div>
+</div>
+
+{/* Notes */}
+{isExpanded && entity.entity_notes && (
+    <div className="md:col-span-2 lg:col-span-3">
+        <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Notes</h5>
+        <p className="text-gray-800 text-sm bg-gray-50 p-3 rounded">{entity.entity_notes}</p>
+    </div>
+)}
+</div>
+</div>
+</div>
+);
 };
+
+const renderGuarantorCard = (guarantor: Guarantor, index: number) => {
+    const cardId = `guarantor-${index}`;
+    const isExpanded = expandedCards[cardId] || false;
+
+    return (
+        <div key={cardId} className="bg-white rounded-lg shadow-md mb-4 border-l-4 border-green-500">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                <div>
+                    <h4 className="font-bold text-lg text-gray-800">{guarantor.name}</h4>
+                    <p className="text-sm text-gray-600">Fiscal Code: {guarantor.fiscal_code}</p>
+                    <p className="text-xs text-gray-500">Record ID: {guarantor.record_id}</p>
+                </div>
+                <button
+                    onClick={() => toggleCardExpansion(cardId)}
+                    className="flex items-center gap-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+                >
+                    {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {isExpanded ? 'Show Less' : 'Show All'}
+                </button>
+            </div>
+            <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <h5 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Guarantor Info</h5>
+                        <div className="space-y-1">
+                            {renderDetailRow('Name', guarantor.name, true)}
+                            {renderDetailRow('Fiscal Code', guarantor.fiscal_code, true)}
+                            {renderDetailRow('Is Company', guarantor.is_company, true)}
+                            {renderDetailRow('Gender', guarantor.gender, isExpanded)}
+                            {renderDetailRow('Date of Birth', guarantor.date_of_birth, isExpanded)}
+                        </div>
+                    </div>
+                    {isExpanded && (
+                        <div>
+                            <h5 className="font-semibold text-gray-700
