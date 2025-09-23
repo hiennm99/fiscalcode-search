@@ -56,15 +56,23 @@ export class FiscalCodeSearchService {
             if (entitiesError) throw entitiesError;
             const relatedRecordIds = entities.map(e => e.record_id);
 
+            // Fetch tất cả guarantors liên quan và loại bỏ trùng lặp ở tầng ứng dụng
+            const { data: guarantorsData, error: guarantorsError } = await supabase
+                .from('guarantors')
+                .select('fiscal_code')
+                .in('record_id', relatedRecordIds);
+
+            if (guarantorsError) throw guarantorsError;
+            // Dùng Set để lấy các mã số thuế duy nhất và đếm số lượng
+            const uniqueGuarantorFiscalCodes = new Set(guarantorsData.map(g => g.fiscal_code));
+
             // Thực hiện các truy vấn đếm song song
             const [
-                guarantorsCount,
                 contactsCount,
                 addressesCount,
                 banksCount,
                 jobsCount
             ] = await Promise.all([
-                relatedRecordIds.length > 0 ? supabase.from('guarantors').select('record_id', { count: 'exact', head: true }).in('record_id', relatedRecordIds) : { count: 0 },
                 supabase.from('contacts').select('record_id', { count: 'exact', head: true }).eq('fiscal_code', fiscalCode),
                 supabase.from('addresses').select('record_id', { count: 'exact', head: true }).eq('fiscal_code', fiscalCode),
                 supabase.from('banks').select('record_id', { count: 'exact', head: true }).eq('fiscal_code', fiscalCode),
@@ -72,7 +80,7 @@ export class FiscalCodeSearchService {
             ]);
 
             return {
-                guarantors_count: guarantorsCount.count || 0,
+                guarantors_count: uniqueGuarantorFiscalCodes.size,
                 contacts_count: contactsCount.count || 0,
                 addresses_count: addressesCount.count || 0,
                 banks_count: banksCount.count || 0,
@@ -103,12 +111,26 @@ export class FiscalCodeSearchService {
             return []; // Không có thực thể nào khớp, vì vậy không có người bảo lãnh
         }
 
-        // Sau đó, lấy những người bảo lãnh có record_id khớp
-        const query = supabase
+        // Sau đó, lấy tất cả các bản ghi guarantors liên quan
+        const { data: rawGuarantors, error: guarantorsError } = await supabase
             .from('guarantors')
             .select('*')
             .in('record_id', relatedRecordIds);
-        return this.executeQuery<Guarantor>(query);
+
+        if (guarantorsError) {
+            console.error('Lỗi khi lấy người bảo lãnh:', guarantorsError);
+            throw new Error('Không thể lấy người bảo lãnh.');
+        }
+
+        // Áp dụng logic loại bỏ trùng lặp ở tầng ứng dụng (client-side)
+        const uniqueGuarantors: Record<string, Guarantor> = {};
+        rawGuarantors.forEach(guarantor => {
+            if (!uniqueGuarantors[guarantor.fiscal_code]) {
+                uniqueGuarantors[guarantor.fiscal_code] = guarantor;
+            }
+        });
+
+        return Object.values(uniqueGuarantors);
     }
 
     static async getContacts(fiscalCode: string): Promise<Contact[]> {
@@ -145,28 +167,5 @@ export class FiscalCodeSearchService {
             .select('*')
             .eq('fiscal_code', fiscalCode);
         return this.executeQuery<JobInfo>(query);
-    }
-
-    // Phương thức tiện ích để lấy tất cả dữ liệu cùng một lúc
-    static async getAllDataByFiscalCode(fiscalCode: string): Promise<SearchResults> {
-        const [entities, guarantors, contacts, addresses, banks, jobs, metadata] = await Promise.all([
-            this.getEntityByFiscalCode(fiscalCode),
-            this.getGuarantors(fiscalCode),
-            this.getContacts(fiscalCode),
-            this.getAddresses(fiscalCode),
-            this.getBanks(fiscalCode),
-            this.getJobs(fiscalCode),
-            this.getMetadata(fiscalCode)
-        ]);
-
-        return {
-            entities,
-            guarantors,
-            contacts,
-            addresses,
-            banks,
-            jobs,
-            metadata
-        };
     }
 }
