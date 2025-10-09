@@ -1,29 +1,28 @@
 // ============================================
-// components/EntityDetail/EntityDetail.tsx
+// components/EntityDetail/EntityDetail.tsx - Optimized (No Delay)
 // ============================================
 import React, { useEffect, useState } from 'react';
-import { useParams, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { User, Building2, ArrowLeft, Loader2 } from 'lucide-react';
+import { useParams, Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { User, Building2, ArrowLeft, Loader2, Layers } from 'lucide-react';
 import { entityApiService } from "../../services/entityApi.service.ts";
-import type { Entity } from "../../types/entity.types";
-import { EntityInfo } from './EntityInfo.tsx';
-import { BankList } from './BankList.tsx';
-import { ContactList } from './ContactList.tsx';
-import { JobList } from './JobList.tsx';
-import { AddressList } from './AddressList.tsx';
-import { GuarantorList } from './GuarantorList.tsx';
-import { JointList } from './JointList.tsx';
-import { PossibleGuarantorList } from "./PossibleGuarantorList.tsx";
-import { OthersList } from "./OthersList.tsx";
-import { EredeList } from "./EredeList.tsx";
+import type { Entity } from "../../types/entity.types.ts";
+import { toTitleCase } from '../../utils/reformatData.ts';
+import { useEntityStore } from "../../stores/entityStore.ts";
 
 export const EntityDetail: React.FC = () => {
     const { entity_id } = useParams<{ entity_id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [entity, setEntity] = useState<Entity | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedSource, setSelectedSource] = useState<number>(0);
+    const [isTransitioning, setIsTransitioning] = useState(false); // ✅ NEW
 
+    const setCurrentEntity = useEntityStore((state) => state.setCurrentEntity);
+    const clearCurrentEntity = useEntityStore((state) => state.clearCurrentEntity);
+
+    // ✅ Fetch entity data when entering page
     useEffect(() => {
         const fetchEntity = async () => {
             if (!entity_id) return;
@@ -32,9 +31,19 @@ export const EntityDetail: React.FC = () => {
             setError(null);
 
             try {
-                // Gọi API getById với entity_id
                 const result = await entityApiService.getById(entity_id);
                 setEntity(result);
+
+                const mainEntity = result.all_sources?.[0] || result;
+                setCurrentEntity({
+                    entityId: mainEntity.entity_id,
+                    fiscalCode: result.fiscal_code,
+                    role: mainEntity.borrower_type_id,
+                    sourceSystem: mainEntity.source_system,
+                    uniqueLoanId: mainEntity.unique_loan_id,
+                    entityData: mainEntity,
+                });
+
             } catch (err) {
                 setError('Failed to load entity details');
                 console.error('Error fetching entity:', err);
@@ -44,7 +53,54 @@ export const EntityDetail: React.FC = () => {
         };
 
         fetchEntity();
-    }, [entity_id]);
+
+        return () => {
+            clearCurrentEntity();
+        };
+    }, [entity_id, setCurrentEntity, clearCurrentEntity]);
+
+    // ✅ Update store when user selects different source (OPTIMIZED)
+    useEffect(() => {
+        if (!entity || !entity.all_sources) return;
+
+        const selectedEntity = entity.all_sources[selectedSource];
+        if (!selectedEntity) return;
+
+        // Show loading overlay immediately
+        setIsTransitioning(true);
+
+        // Update store synchronously
+        setCurrentEntity({
+            entityId: selectedEntity.entity_id,
+            fiscalCode: entity.fiscal_code,
+            role: selectedEntity.borrower_type_id,
+            sourceSystem: selectedEntity.source_system,
+            uniqueLoanId: selectedEntity.unique_loan_id,
+            entityData: selectedEntity,
+        });
+
+        // Hide loading overlay after brief delay (allows child components to start loading)
+        const timer = setTimeout(() => {
+            setIsTransitioning(false);
+        }, 150);
+
+        return () => clearTimeout(timer);
+    }, [selectedSource, entity, setCurrentEntity]);
+
+    // ✅ Handle source change with URL update
+    const handleSourceChange = (index: number, newEntityId: string) => {
+        setSelectedSource(index);
+
+        const pathParts = location.pathname.split('/');
+        const currentTab = pathParts[pathParts.length - 1];
+
+        const isOnSubTab = pathParts.length > 3 && currentTab !== newEntityId;
+        const newPath = isOnSubTab
+            ? `/entity/${newEntityId}/${currentTab}`
+            : `/entity/${newEntityId}`;
+
+        navigate(newPath, { replace: true });
+    };
 
     if (isLoading) {
         return (
@@ -71,11 +127,12 @@ export const EntityDetail: React.FC = () => {
     }
 
     const tabs = [
-        { path: '', label: 'Details', end: true },
+        { path: '', label: 'Details' },
         { path: 'addresses', label: 'Addresses' },
         { path: 'contacts', label: 'Contacts' },
         { path: 'banks', label: 'Banks' },
         { path: 'jobs', label: 'Jobs' },
+        { path: 'assets', label: 'Assets' },
         { path: 'guarantors', label: 'Guarantors' },
         { path: 'joints', label: 'Joints' },
         { path: 'others', label: 'Others' },
@@ -129,14 +186,44 @@ export const EntityDetail: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Source Selector for Merged Entities */}
+                {entity.is_merged && entity.all_sources && entity.all_sources.length > 1 && (
+                    <div className="bg-purple-50 rounded-lg shadow-sm p-6 border border-purple-200 mb-6">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Layers className="w-5 h-5 text-purple-600" />
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Multiple Data Sources Detected
+                            </h3>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {entity.all_sources.map((source, index) => (
+                                <button
+                                    key={source.entity_id}
+                                    onClick={() => handleSourceChange(index, source.entity_id)}
+                                    disabled={isTransitioning}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                        selectedSource === index
+                                            ? 'bg-purple-600 text-white'
+                                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                    } ${isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    <div className="flex flex-col items-start">
+                                        <span>{toTitleCase(source.source_system)}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Tab Navigation */}
                 <div className="bg-white rounded-lg shadow-sm mb-6">
                     <nav className="flex border-b border-gray-200 overflow-x-auto">
                         {tabs.map((tab) => {
                             const to = `/entity/${entity_id}${tab.path ? '/' + tab.path : ''}`;
-                            const isActive = tab.end
-                                ? window.location.pathname === to
-                                : window.location.pathname.includes(tab.path);
+                            const isActive = tab.path === ''
+                                ? location.pathname === `/entity/${entity_id}` || location.pathname === `/entity/${entity_id}/`
+                                : location.pathname.includes(`/${tab.path}`);
 
                             return (
                                 <Link
@@ -155,19 +242,20 @@ export const EntityDetail: React.FC = () => {
                     </nav>
                 </div>
 
-                {/* Tab Content */}
-                <Routes>
-                    <Route path="/" element={<EntityInfo entity={entity} />} />
-                    <Route path="/addresses" element={<AddressList entity={entity} />} />
-                    <Route path="/contacts" element={<ContactList entity={entity} />} />
-                    <Route path="/banks" element={<BankList entity={entity} />} />
-                    <Route path="/jobs" element={<JobList entity={entity} />} />
-                    <Route path="/guarantors" element={<GuarantorList entity={entity} />} />
-                    <Route path="/joints" element={<JointList entity={entity} />} />
-                    <Route path="/possible" element={<PossibleGuarantorList entity={entity} />} />
-                    <Route path="/others" element={<OthersList entity={entity} />} />
-                    <Route path="/erede" element={<EredeList entity={entity} />} />
-                </Routes>
+                {/* Tab Content with Loading Overlay */}
+                <div className="relative">
+                    {/* ✅ Loading overlay during transition */}
+                    {isTransitioning && (
+                        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                            <div className="flex items-center gap-2 text-gray-600">
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span>Switching source...</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <Outlet />
+                </div>
             </div>
         </div>
     );

@@ -3,12 +3,13 @@ import type {Entity} from "./entity.types.ts";
 export interface TypesenseHit<T> {
     document: T;
 }
+
 export interface AutocompleteItem {
-    entity_id: string;  // Thêm entity_id duy nhất
-    id: string;  // Giữ lại để backward compatible
+    entity_id: string;
+    id: string;
     name: string;
     fiscal_code?: string;
-    source_system?: string;  // Thêm để hiển thị nguồn
+    source_system?: string;
 }
 
 export interface SearchFilters {
@@ -18,18 +19,18 @@ export interface SearchFilters {
     source_system?: string;
     borrower_type_id?: number;
     country_of_birth?: string;
-    region_of_birth?: string;
+    city_of_birth?: string;
     province_of_birth?: string;
 }
 
-
 export interface SearchParams {
     q: string;
+    query_by: string;
+    per_page?: number;
+    page?: number;
     filter_by?: string;
     sort_by?: string;
-    query_by: string;
-    per_page: number;
-    page: number;
+    include_fields?: string;
 }
 
 export interface SearchOptions {

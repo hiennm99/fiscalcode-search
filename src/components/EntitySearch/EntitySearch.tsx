@@ -1,7 +1,7 @@
 // ============================================
 // components/EntitySearch/EntitySearch.tsx
 // ============================================
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Filter, Loader2 } from 'lucide-react';
 import { useEntitySearch } from "../../hooks/useEntitySearch";
 import { useAutocomplete } from '../../hooks/useAutocomplete';
@@ -9,6 +9,7 @@ import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { EntityCard } from './EntityCard';
 import { Pagination } from './Pagination';
+import type { Entity } from "../../types/entity.types";
 
 export const EntitySearch: React.FC = () => {
     const {
@@ -36,6 +37,29 @@ export const EntitySearch: React.FC = () => {
         setQuery(item.name);
         setShowDropdown(false);
     };
+
+    // ✅ Group entities by fiscal_code
+    const groupedEntities = useMemo(() => {
+        if (!searchResults || !searchResults.results || searchResults.results.length === 0) {
+            return [];
+        }
+
+        const grouped = new Map<string, Entity[]>();
+
+        searchResults.results.forEach((entity) => {
+            // Skip entities without fiscal_code
+            if (!entity || !entity.fiscal_code) return;
+
+            const fiscalCode = entity.fiscal_code;
+            if (!grouped.has(fiscalCode)) {
+                grouped.set(fiscalCode, []);
+            }
+            grouped.get(fiscalCode)!.push(entity);
+        });
+
+        // Filter out empty groups
+        return Array.from(grouped.values()).filter(group => group.length > 0);
+    }, [searchResults]);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -94,7 +118,8 @@ export const EntitySearch: React.FC = () => {
                 {!isLoading && searchResults && (
                     <>
                         <div className="mb-4 text-sm text-gray-600">
-                            Found {searchResults.found} result{searchResults.found !== 1 ? 's' : ''}
+                            Found {groupedEntities.length} unique fiscal code{groupedEntities.length !== 1 ? 's' : ''}
+                            {' '}({searchResults.found} total record{searchResults.found !== 1 ? 's' : ''})
                         </div>
                         <Pagination
                             currentPage={currentPage}
@@ -102,10 +127,10 @@ export const EntitySearch: React.FC = () => {
                             onPageChange={setCurrentPage}
                         />
                         <div className="mt-4 space-y-4">
-                            {searchResults.results.map((entity) => (
+                            {groupedEntities.map((entities, index) => (
                                 <EntityCard
-                                    key={entity.entity_id}
-                                    entity={entity}
+                                    key={entities[0].fiscal_code || `group-${index}`}
+                                    entities={entities}
                                 />
                             ))}
                         </div>

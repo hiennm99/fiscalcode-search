@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  fiscalcode-search:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fiscalcode-search
+    ports:
+      - "3010:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+version: '3.8'
+
+services:
+  fiscalcode-search:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fiscalcode-search
+    ports:
+      - "3010:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+  ngrok-typesense:
+    image: ngrok/ngrok:latest
+    container_name: ngrok-typesense
+    restart: unless-stopped
+    network_mode: "host"  # Dùng network của host
+    command:
+      - "http"
+      - "localhost:8108"
+      - "--authtoken=${NGROK_AUTHTOKEN}"
+    environment:
+      - NGROK_WEB_ADDR=4041
+

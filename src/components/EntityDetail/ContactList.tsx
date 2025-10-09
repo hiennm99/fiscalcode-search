@@ -2,36 +2,42 @@
 // components/EntityDetail/ContactList.tsx
 // ============================================
 import React, { useEffect, useState } from 'react';
-import {Phone, Loader2, MapPin} from 'lucide-react';
+import { Phone, Loader2, MapPin } from 'lucide-react';
 import { contactApiService } from "../../services/contactApi.service.ts";
-import type { Entity } from "../../types/entity.types";
-import type { Contact} from "../../types/related.types";
-import { reformatContact } from "../utils/reformatData.ts";
+import type { Contact } from "../../types/related.types.ts";
+import { reformatContact } from "../../utils/reformatData.ts";
+import { useEntityStore } from "../../stores/entityStore.ts";
 
-interface ContactListProps {
-    entity: Entity;
-}
-
-export const ContactList: React.FC<ContactListProps> = ({ entity }) => {
+export const ContactList: React.FC = () => {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    // ✅ ContactList cần fiscal_code, nên cần lưu thêm trong store
+    const currentEntityId = useEntityStore((state) => state.currentEntityId);
+
     useEffect(() => {
         const fetchContacts = async () => {
+            if (!currentEntityId) {
+                setContacts([]);
+                setIsLoading(false);
+                return;
+            }
+
             setIsLoading(true);
             try {
-                const data = await contactApiService.getByEntityId(entity.entity_id);
-                const formattedData= data.map((entry: Contact) => reformatContact(entry));
+                const data = await contactApiService.getByEntityId(currentEntityId);
+                const formattedData = data.map((entry: Contact) => reformatContact(entry));
                 setContacts(formattedData);
             } catch (error) {
                 console.error('Error fetching contacts:', error);
+                setContacts([]);
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchContacts();
-    }, [entity.entity_id]);
+    }, [currentEntityId]);
 
     if (isLoading) {
         return (
@@ -67,7 +73,6 @@ export const ContactList: React.FC<ContactListProps> = ({ entity }) => {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:divide-x divide-gray-200 px-6 pb-6">
-                                {/* Column 1: Address Information */}
                                 <div className="lg:pr-6">
                                     <div className="space-y-2 text-sm">
                                         <div className="grid grid-cols-2 gap-2">
@@ -89,7 +94,6 @@ export const ContactList: React.FC<ContactListProps> = ({ entity }) => {
                                     </div>
                                 </div>
 
-                                {/* Column 3: Metadata */}
                                 <div>
                                     <div className="space-y-2 text-sm">
                                         <div className="grid grid-cols-2 gap-2">

@@ -1,57 +1,62 @@
 // ============================================
-// components/EntityDetail/OthersList.tsx
+// components/EntityDetail/OTHERSList.tsx
 // ============================================
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Shield, Loader2 } from 'lucide-react';
-import type { Entity } from "../../types/entity.types";
-import type { Others } from "../../types/related.types";
-import {entityApiService} from "../../services/entityApi.service.ts";
-import {BORROWER_TYPES} from "../../constants";
-import {Link} from "react-router";
+import { entityApiService } from "../../services/entityApi.service.ts";
+import type { Entity } from "../../types/entity.types.ts";
+import { BORROWER_TYPES } from "../../constants";
+import { useEntityStore } from "../../stores/entityStore.ts";
 
-interface OthersListProps {
-    entity: Entity;
-}
+const CURRENT_ROLE = BORROWER_TYPES['OTHER']; // This is a number (e.g., 5)
 
-const currentRole = BORROWER_TYPES['OTHER'];
-
-export const OthersList: React.FC<OthersListProps> = ({ entity }) => {
-    const [Others, setOthers] = useState<Others[]>([]);
+export const OthersList: React.FC = () => {
+    const [OTHERSs, setOTHERSs] = useState<Entity[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // ✅ FIX: Select individual values, not creating new object
+    const currentRole = useEntityStore((state) => state.currentRole);
+    const currentSourceSystem = useEntityStore((state) => state.currentSourceSystem);
+    const currentUniqueLoanId = useEntityStore((state) => state.currentUniqueLoanId);
 
     useEffect(() => {
         const fetchData = async () => {
+            // ✅ Only fetch when we have loan info AND entity is NOT a OTHERS
+            if (!currentSourceSystem || !currentUniqueLoanId || currentRole === CURRENT_ROLE) {
+                setOTHERSs([]);
+                setIsLoading(false);
+                return;
+            }
+
             setIsLoading(true);
             try {
                 const data = await entityApiService.searchByLoan({
-                    sourceSystem: entity.source_system,
-                    uniqueId: entity.unique_loan_id,
-                    borrowerTypeId: currentRole,
+                    sourceSystem: currentSourceSystem,
+                    uniqueId: currentUniqueLoanId,
+                    borrowerTypeId: CURRENT_ROLE,
                     page: 1,
                     perPage: 20
                 });
 
-                setOthers(data.results);
-
+                setOTHERSs(data.results);
             } catch (error) {
-                console.error('Error fetching guarantors:', error);
+                console.error('Error fetching OTHERSs:', error);
+                setOTHERSs([]);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        // Chỉ fetch khi có đủ thông tin VÀ entity hiện tại không phải là guarantor
-        if (entity.source_system && entity.unique_loan_id && entity.borrower_type_id !== 5) {
-            fetchData();
-        }
-    }, [entity.source_system, entity.unique_loan_id, entity.borrower_type_id]);
+        fetchData();
+    }, [currentSourceSystem, currentUniqueLoanId, currentRole]);
 
-    // Nếu entity hiện tại là others (type 3), không hiển thị section này
-    if (entity.borrower_type_id === currentRole) {
+    // ✅ If current entity is a OTHERS, don't show this section
+    if (currentRole === CURRENT_ROLE) {
         return (
             <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Current role is Others</p>
+                <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4"/>
+                <p className="text-gray-500">Current role is OTHERS</p>
             </div>
         );
     }
@@ -59,25 +64,25 @@ export const OthersList: React.FC<OthersListProps> = ({ entity }) => {
     if (isLoading) {
         return (
             <div className="flex justify-center items-center py-12">
-                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin"/>
             </div>
         );
     }
 
-    if (Others.length === 0) {
+    if (OTHERSs.length === 0) {
         return (
             <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No other borrower found for this entity</p>
+                <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4"/>
+                <p className="text-gray-500">No OTHERSs found for this entity</p>
             </div>
         );
     }
 
     return (
         <div className="space-y-4">
-            {Others.map((entity, index) => (
+            {OTHERSs.map((entity) => (
                 <Link
-                    key={index}
+                    key={entity.entity_id} // ✅ Use entity_id as key instead of index
                     to={`/entity/${entity.entity_id}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -89,7 +94,7 @@ export const OthersList: React.FC<OthersListProps> = ({ entity }) => {
                         </div>
                         <div className="flex-1">
                             <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                                {entity.name || 'Guarantor'}
+                                {entity.name || 'OTHERS'}
                             </h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
@@ -108,4 +113,4 @@ export const OthersList: React.FC<OthersListProps> = ({ entity }) => {
             ))}
         </div>
     );
-}
+};

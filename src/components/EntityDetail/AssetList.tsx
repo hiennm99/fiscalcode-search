@@ -1,43 +1,41 @@
 // ============================================
-// components/EntityDetail/AddressList.tsx
+// components/EntityDetail/AssetList.tsx
 // ============================================
 import React, { useEffect, useState } from 'react';
-import { MapPin, Loader2 } from 'lucide-react';
-import { addressApiService } from "../../services/addressApi.service.ts";
-import type { Address } from "../../types/related.types.ts";
-import { reformatAddress } from "../../utils/reformatData.ts";
-import { useEntityStore } from "../../stores/entityStore.ts"; // Import Zustand store
+import { Building2, Loader2 } from 'lucide-react';
+import { assetApiService } from "../../services/assetApi.service.ts";
+import type { Asset } from "../../types/related.types.ts";
+import { reformatAsset } from "../../utils/reformatData.ts";
+import { useEntityStore } from "../../stores/entityStore.ts";
 
-export const AddressList: React.FC = () => {
-    const [addresses, setAddresses] = useState<Address[]>([]);
+export const AssetList: React.FC = () => {
+    const [assets, setAssets] = useState<Asset[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
     const currentEntityId = useEntityStore((state) => state.currentEntityId);
 
     useEffect(() => {
-        const fetchData = async () => {
-            // ✅ Nếu không có entity_id thì không fetch
+        const fetchAssets = async () => {
             if (!currentEntityId) {
-                setAddresses([]);
+                setAssets([]);
                 setIsLoading(false);
                 return;
             }
 
             setIsLoading(true);
             try {
-                const data = await addressApiService.getByEntityId(currentEntityId);
-                const formattedData = data.map((entry: Address) => reformatAddress(entry));
-                setAddresses(formattedData);
+                const data = await assetApiService.getByEntityId(currentEntityId);
+                const formattedData = data.map((entry: Asset) => reformatAsset(entry));
+                setAssets(formattedData);
             } catch (error) {
-                console.error('Error fetching addresses:', error);
-                setAddresses([]);
+                console.error('Error fetching assets:', error);
+                setAssets([]);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchData();
-    }, [currentEntityId]); // ✅ Chỉ phụ thuộc vào currentEntityId
+        fetchAssets();
+    }, [currentEntityId]);
 
     if (isLoading) {
         return (
@@ -47,34 +45,33 @@ export const AddressList: React.FC = () => {
         );
     }
 
-    if (addresses.length === 0) {
+    if (assets.length === 0) {
         return (
             <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No addresses found for this entity</p>
+                <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No assets found for this entity</p>
             </div>
         );
     }
 
     return (
         <div className="space-y-4">
-            {addresses.map((entry, index) => (
-                <AddressCard key={index} entry={entry} index={index} />
+            {assets.map((entry, index) => (
+                <AssetCard key={index} entry={entry} index={index} />
             ))}
         </div>
     );
 };
 
-// Separate component for address card
-const AddressCard: React.FC<{ entry: Address; index: number }> = ({ entry, index }) => (
+const AssetCard: React.FC<{ entry: Asset; index: number }> = ({ entry, index }) => (
     <div className="bg-white rounded-lg border border-gray-200">
         <div className="flex items-start gap-3 p-6 pb-4">
-            <div className="flex-shrink-0 w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-green-600" />
+            <div className="flex-shrink-0 w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-purple-600" />
             </div>
             <div className="flex-1 pt-1">
                 <h3 className="text-base font-semibold text-gray-900">
-                    Address {index + 1}
+                    Asset {index + 1}
                 </h3>
             </div>
         </div>
@@ -83,13 +80,13 @@ const AddressCard: React.FC<{ entry: Address; index: number }> = ({ entry, index
             <div className="lg:pr-6">
                 <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Category:</span>
+                        <span className="text-gray-600">Address Category:</span>
                         <span className="text-gray-900 italic">{entry.address_category || 'N/A'}</span>
                     </div>
-                    {/*<div className="grid grid-cols-2 gap-2">*/}
-                    {/*    <span className="text-gray-600">Type:</span>*/}
-                    {/*    <span className="text-gray-900 italic">{entry.address_type || 'N/A'}</span>*/}
-                    {/*</div>*/}
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Address Type:</span>
+                        <span className="text-gray-900 italic">{entry.address_type || 'N/A'}</span>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Street:</span>
                         <span className="text-gray-900 italic">{entry.street || 'N/A'}</span>

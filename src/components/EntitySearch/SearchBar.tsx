@@ -3,7 +3,7 @@
 // ============================================
 import React from 'react';
 import { Search, X } from 'lucide-react';
-import type { AutocompleteItem } from "../../types/entity.types.ts";
+import type { AutocompleteItem } from "../../types/typesense.types.ts";
 
 interface SearchBarProps {
     query: string;

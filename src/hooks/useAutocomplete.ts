@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import debounce from 'lodash/debounce';
 import { entityApiService } from "../services/entityApi.service.ts";
-import type { AutocompleteItem } from "../types/entity.types.ts";
+import type { AutocompleteItem } from "../types/typesense.types.ts";
 
 export const useAutocomplete = (query: string, minLength: number = 2) => {
     const [results, setResults] = useState<AutocompleteItem[]>([]);
@@ -22,6 +22,8 @@ export const useAutocomplete = (query: string, minLength: number = 2) => {
             setIsLoading(true);
             try {
                 const data = await entityApiService.autocomplete(searchQuery);
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-expect-error
                 setResults(data);
                 setShowDropdown(data.length > 0);
             } catch (error) {

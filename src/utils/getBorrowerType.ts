@@ -1,4 +1,4 @@
-import { BORROWER_TYPE_LABELS } from "../../constants";
+import { BORROWER_TYPE_LABELS } from "../constants";
 
 // Hàm với xử lý lỗi tốt hơn
 export const getBorrowerType = (id: string | number | null | undefined) => {

@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import debounce from 'lodash/debounce';
 import { entityApiService } from "../services/entityApi.service.ts";
-import type { SearchFilters, SearchResult } from "../types/entity.types.ts";
+import type { SearchFilters, SearchResult } from "../types/typesense.types.ts";
 
 export const useEntitySearch = () => {
     const [query, setQuery] = useState('');

@@ -2,52 +2,57 @@
 // components/EntityDetail/GuarantorList.tsx
 // ============================================
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import { Shield, Loader2 } from 'lucide-react';
 import { entityApiService } from "../../services/entityApi.service.ts";
-import type { Entity } from "../../types/entity.types";
-import type { Guarantor } from "../../types/related.types";
-import {BORROWER_TYPES} from "../../constants";
+import type { Entity } from "../../types/entity.types.ts";
+import { BORROWER_TYPES } from "../../constants";
+import { useEntityStore } from "../../stores/entityStore.ts";
 
-interface GuarantorListProps {
-    entity: Entity;
-}
+const CURRENT_ROLE = BORROWER_TYPES['GUARANTOR']; // This is a number (e.g., 5)
 
-const currentRole = BORROWER_TYPES['GUARANTOR'];
-
-export const GuarantorList: React.FC<GuarantorListProps> = ({ entity }) => {
-    const [guarantors, setGuarantors] = useState<Guarantor[]>([]);
+export const GuarantorList: React.FC = () => {
+    const [guarantors, setGuarantors] = useState<Entity[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // ✅ FIX: Select individual values, not creating new object
+    const currentRole = useEntityStore((state) => state.currentRole);
+    const currentSourceSystem = useEntityStore((state) => state.currentSourceSystem);
+    const currentUniqueLoanId = useEntityStore((state) => state.currentUniqueLoanId);
 
     useEffect(() => {
         const fetchData = async () => {
+            // ✅ Only fetch when we have loan info AND entity is NOT a guarantor
+            if (!currentSourceSystem || !currentUniqueLoanId || currentRole === CURRENT_ROLE) {
+                setGuarantors([]);
+                setIsLoading(false);
+                return;
+            }
+
             setIsLoading(true);
             try {
                 const data = await entityApiService.searchByLoan({
-                    sourceSystem: entity.source_system,
-                    uniqueId: entity.unique_loan_id,
-                    borrowerTypeId: currentRole,
+                    sourceSystem: currentSourceSystem,
+                    uniqueId: currentUniqueLoanId,
+                    borrowerTypeId: CURRENT_ROLE,
                     page: 1,
                     perPage: 20
                 });
 
                 setGuarantors(data.results);
-
             } catch (error) {
                 console.error('Error fetching guarantors:', error);
+                setGuarantors([]);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        // Chỉ fetch khi có đủ thông tin VÀ entity hiện tại không phải là guarantor
-        if (entity.source_system && entity.unique_loan_id && entity.borrower_type_id !== 5) {
-            fetchData();
-        }
-    }, [entity.source_system, entity.unique_loan_id, entity.borrower_type_id]);
+        fetchData();
+    }, [currentSourceSystem, currentUniqueLoanId, currentRole]);
 
-    // Nếu entity hiện tại là guarantor (type 5), không hiển thị section này
-    if (entity.borrower_type_id === currentRole) {
+    // ✅ If current entity is a guarantor, don't show this section
+    if (currentRole === CURRENT_ROLE) {
         return (
             <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                 <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4"/>
@@ -75,9 +80,9 @@ export const GuarantorList: React.FC<GuarantorListProps> = ({ entity }) => {
 
     return (
         <div className="space-y-4">
-            {guarantors.map((entity, index) => (
+            {guarantors.map((entity) => (
                 <Link
-                    key={index}
+                    key={entity.entity_id} // ✅ Use entity_id as key instead of index
                     to={`/entity/${entity.entity_id}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -108,4 +113,4 @@ export const GuarantorList: React.FC<GuarantorListProps> = ({ entity }) => {
             ))}
         </div>
     );
-}
+};
