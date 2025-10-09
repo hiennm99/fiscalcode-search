@@ -61,6 +61,7 @@ export function reformatEntity(data: Entity): Entity {
     const result: any = {
         ...data,
         source_system: data.source_system ? toTitleCase(data.source_system) : data.source_system,
+        dbt_data: safeFormatDate(data.dbt_data, "yyyy-MM-dd HH:mm:ss") || data.dbt_data,
         created_date: safeFormatDate(data.created_date, "yyyy-MM-dd HH:mm:ss") || data.created_date,
         modified_date: safeFormatDate(data.modified_date, "yyyy-MM-dd HH:mm:ss") || data.modified_date,
         extracted_date: safeFormatDate(data.extracted_date, "yyyy-MM-dd HH:mm:ss") || data.extracted_date,

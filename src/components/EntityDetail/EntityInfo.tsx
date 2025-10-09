@@ -132,6 +132,7 @@ export const EntityInfo: React.FC = () => {
                         <InfoField label="Sheet" value={formattedEntityInfo.sheet} />
                     </dl>
                     <dl className="space-y-4">
+                        <InfoField label="Dbt Data" value={formattedEntityInfo.dbt_data} />
                         <InfoField label="Created Date" value={formattedEntityInfo.created_date} />
                         <InfoField label="Modified Date" value={formattedEntityInfo.modified_date} />
                         <InfoField label="Extracted Date" value={formattedEntityInfo.extracted_date} />
