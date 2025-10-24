@@ -35,7 +35,7 @@ class AssetApiService {
         try {
             const searchParams: SearchParams = {
                 q: '*',
-                query_by: 'employer_name',
+                query_by: 'street,city,province',
                 filter_by: `entity_id:=${entityId}`,
                 per_page: 250,
                 page: 1

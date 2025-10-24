@@ -80,16 +80,31 @@ const AddressCard: React.FC<{ entry: Address; index: number }> = ({ entry, index
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:divide-x divide-gray-200 px-6 pb-6">
-            <div className="lg:pr-6">
+            {/*Origin Address Details*/}
+            <div className="lg:px-6">
                 <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Category:</span>
+                        <span className="text-gray-600">Address Category:</span>
                         <span className="text-gray-900 italic">{entry.address_category || 'N/A'}</span>
                     </div>
-                    {/*<div className="grid grid-cols-2 gap-2">*/}
-                    {/*    <span className="text-gray-600">Type:</span>*/}
-                    {/*    <span className="text-gray-900 italic">{entry.address_type || 'N/A'}</span>*/}
-                    {/*</div>*/}
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Origin Street:</span>
+                        <span className="text-gray-900 italic">{entry.origin_street || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Origin City:</span>
+                        <span className="text-gray-900 italic">{entry.origin_city || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Origin Province:</span>
+                        <span className="text-gray-900 italic">{entry.origin_province || 'N/A'}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/*Validated Address Details*/}
+            <div className="lg:pr-6">
+                <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Street:</span>
                         <span className="text-gray-900 italic">{entry.street || 'N/A'}</span>
@@ -109,23 +124,6 @@ const AddressCard: React.FC<{ entry: Address; index: number }> = ({ entry, index
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Country:</span>
                         <span className="text-gray-900 italic">{entry.country || 'N/A'}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="lg:px-6">
-                <div className="space-y-2 text-sm">
-                    <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Origin Street:</span>
-                        <span className="text-gray-900 italic">{entry.origin_street || 'N/A'}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Origin City:</span>
-                        <span className="text-gray-900 italic">{entry.origin_city || 'N/A'}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Origin Province:</span>
-                        <span className="text-gray-900 italic">{entry.origin_province || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Similarity:</span>
@@ -148,6 +146,7 @@ const AddressCard: React.FC<{ entry: Address; index: number }> = ({ entry, index
                 </div>
             </div>
 
+            {/*Metadata*/}
             <div className="lg:pl-6">
                 <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">

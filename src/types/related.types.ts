@@ -159,7 +159,7 @@ export interface Asset {
     similar_score?: number;
 
     asset_sub?: number;
-    asset_zona: string;
+    asset_zone: string;
     asset_class?: string;
     asset_sheet?: string;
     asset_category?: string;

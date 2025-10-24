@@ -87,6 +87,7 @@ export const EntityInfo: React.FC = () => {
                     <InfoField label="GBV" value={formattedEntityInfo.borrower_gbv} />
                     <InfoField label="Unique Loan" value={formattedEntityInfo.unique_loan_id} />
                     <InfoField label="VAT Number" value={formattedEntityInfo.vat_number} />
+                    <InfoField label="Originator" value={formattedEntityInfo.originator} />
                     {getBorrowerType(formattedEntityInfo.borrower_type_id) === 'Guarantor' && (
                         <>
                             <InfoField label="Guarantor Type" value={formattedEntityInfo.guarantor_type} />

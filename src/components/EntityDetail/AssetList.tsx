@@ -76,17 +76,32 @@ const AssetCard: React.FC<{ entry: Asset; index: number }> = ({ entry, index }) 
             </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:divide-x divide-gray-200 px-6 pb-6">
-            <div className="lg:pr-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:divide-x divide-gray-200 px-6 pb-6">
+            {/*Origin Address Details*/}
+            <div className="lg:px-6">
                 <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Address Category:</span>
                         <span className="text-gray-900 italic">{entry.address_category || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Address Type:</span>
-                        <span className="text-gray-900 italic">{entry.address_type || 'N/A'}</span>
+                        <span className="text-gray-600">Origin Street:</span>
+                        <span className="text-gray-900 italic">{entry.origin_street || 'N/A'}</span>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Origin City:</span>
+                        <span className="text-gray-900 italic">{entry.origin_city || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Origin Province:</span>
+                        <span className="text-gray-900 italic">{entry.origin_province || 'N/A'}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/*Validated Address Details*/}
+            <div className="lg:pr-6">
+                <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Street:</span>
                         <span className="text-gray-900 italic">{entry.street || 'N/A'}</span>
@@ -106,23 +121,6 @@ const AssetCard: React.FC<{ entry: Asset; index: number }> = ({ entry, index }) 
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Country:</span>
                         <span className="text-gray-900 italic">{entry.country || 'N/A'}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="lg:px-6">
-                <div className="space-y-2 text-sm">
-                    <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Origin Street:</span>
-                        <span className="text-gray-900 italic">{entry.origin_street || 'N/A'}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Origin City:</span>
-                        <span className="text-gray-900 italic">{entry.origin_city || 'N/A'}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <span className="text-gray-600">Origin Province:</span>
-                        <span className="text-gray-900 italic">{entry.origin_province || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <span className="text-gray-600">Similarity:</span>
@@ -145,6 +143,66 @@ const AssetCard: React.FC<{ entry: Asset; index: number }> = ({ entry, index }) 
                 </div>
             </div>
 
+            {/*Extended Details*/}
+            <div className="lg:pr-6">
+                <div className="space-y-2 text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Sub:</span>
+                        <span className="text-gray-900 italic">{entry.asset_sub || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Particle Sub:</span>
+                        <span className="text-gray-900 italic">{entry.asset_particle_sub || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">zone:</span>
+                        <span className="text-gray-900 italic">{entry.asset_zone || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Class:</span>
+                        <span className="text-gray-900 italic">{entry.asset_class || 'N/A'}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Sheet:</span>
+                        <span className="text-gray-900 italic">{entry.asset_sheet || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Category:</span>
+                        <span className="text-gray-900 italic">{entry.asset_category || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Dimension:</span>
+                        <span className="text-gray-900 italic">{entry.asset_dimension || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Asset Type:</span>
+                        <span className="text-gray-900 italic">{entry.asset_type || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Cadastral Tax Base:</span>
+                        <span className="text-gray-900 italic">{entry.cadastral_tax_base || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Ownership:</span>
+                        <span className="text-gray-900 italic">{entry.asset_ownership || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Compr Avg:</span>
+                        <span className="text-gray-900 italic">{entry.asset_compr_avg || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Asset Value:</span>
+                        <span className="text-gray-900 italic">{entry.est_asset_value || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <span className="text-gray-600">Ownership Value:</span>
+                        <span className="text-gray-900 italic">{entry.est_ownership_value || 'N/A'}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/*Metadata*/}
             <div className="lg:pl-6">
                 <div className="space-y-2 text-sm">
                     <div className="grid grid-cols-2 gap-2">
